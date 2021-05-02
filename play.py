@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os, subprocess, time, sys
+import midi_data
 
 cmd = None
 did_insmod,didsu = False,False
@@ -79,32 +80,34 @@ if "-setterm" in sys.argv:
 
 skip=0
 if "-skip" in sys.argv:
+    n = sys.argv.index("-skip")
     sys.argv.remove("-skip")
     skip = float(sys.argv.pop(n))/100
 
 if sys.argv[1:] == []:
     myHelp()
     exit()
-    
+
 def FPE(string):
     print("FilePlaybackError: "+string)
-#class FilePlaybackError(BaseException):
-#    pass
 class SystemError(BaseException):
     pass
+
 commands=["beep","setterm","xset"]
 if cmd == None:
     for c in commands:
-        _test = subprocess.getoutput(c+" -l 0")
+        if DEBUG: print(f"Testing: {c}")
         if c == "setterm": _test = subprocess.getoutput(c+" --blength 0")
         elif c == "xset": _test = subprocess.getoutput(c+" b 0")
-        else: _test = subprocess.getoutput(c+" -l 0")
-        if _test.find("not")<0 and (_test.find("device")>0 or _test.find("display")>0):
+        else: _test = subprocess.getoutput(c+" -l 1")
+        if _test.find("not")<0 or (_test.find("device")>0 or _test.find("display")>0):
             cmd=c
             break
+
     if not cmd: cmd="beep"
+
 if DEBUG: print(f"cmd = {cmd}")
-setterm=cmd==commands[1]
+
 if (input("pcspkr is really annoying, are you sure? (y/N) ").strip().lower()+" ")[0] == "y":
     if not "pcspkr" in subprocess.getoutput("lsmod"):
         if (input("We need sudo for modprobe (pcspkr) (y/N) ").strip().lower()+" ")[0] == "y":
@@ -161,7 +164,7 @@ for a in sys.argv[1:]:
                             delay = max(3,delay)
                             if sqd:
                                 length, delay = 10*(length**0.5), 10*(delay**0.5)
-                            note = str(round(2**((note-69)/12)*440))
+                            note = str(round(midi_data.note_to_freq(note)))
                             playlen = str(fastlen) if fast or usepwm else str(round(length/x2))
                             if nodelay: delay=0
                             if cmd=="setterm":
@@ -169,6 +172,10 @@ for a in sys.argv[1:]:
                             elif cmd=="xset":
                                 subprocess.run(( cmd,"b", "30", note, playlen, ))
                             else:
+                                if DEBUG: print( (cmd, "-f", note, "-l", playlen,
+                                  "-d" if length+delay else "",
+                                  str(fastlen if fast else playlen) if length+delay else "",
+                                  ))
                                 subprocess.run(( cmd, "-f", note, "-l", playlen,
                                   "-d" if length+delay else "",
                                   str(fastlen if fast else playlen) if length+delay else "",
