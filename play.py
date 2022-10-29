@@ -9,7 +9,7 @@ file = None
 type = None
 _test = ""
 DEBUG = os.environ.get("DEBUG")!=None or False
-fastlen = 8
+fastlen = 17
 
 def okex():
     print("OK, quitting...")
@@ -30,7 +30,7 @@ def myHelp():
     print("   -nod             No delay between notes.")
     print("   -x speed         Play at speed x.")
     print("   -c -cmd cmd  Other command (beep compatible).")
-    print("   -pwd             Use \"pwm\" to make it \"quieter\".")
+    print("   -pwm             Use \"pwm\" to make it \"quieter\".")
     print("   -nsqd            Match file times, not based on sqrt, uneven length.")
     print("   -beep            Enforce beep command (default).")
     print("   -setterm         Enforce setterm (console) command.")
@@ -118,86 +118,90 @@ if (input("pcspkr is really annoying, are you sure? (y/N) ").strip().lower()+" "
             else: okex()
         else: okex()
 else: okex()
+
 if not cmd:
     raise SystemError("No supported command ("+",".join(commands)+")")
 cancel_counter = 0 # allow skip a song but also kill
-for a in sys.argv[1:]:
-    a=os.path.realpath(a)
-    if a != os.path.realpath(__file__) and os.path.isfile(a):
-        fname=a
-        print("" if DEBUG else "\r" + fname.split("/")[-1].ljust(80))
-        type = fname.split(".")[-1]
-        if type in ["csv"]:
-            file = open(fname,"r")
-        else:
-            continue
-        if DEBUG: print(type)
-        idnote,idlength,iddelay=0,1,2
-        text = {"note":idnote,"length":idlength,"delay":iddelay}
-        lineno=-1
-        if file:
-            try:
-                if type == "csv":
-                    lines = file.read().split("\n")
-                    line = [l.strip() for l in lines.pop(0)]
-                    for i,o in enumerate(line):
-                        if o in text:
-                            text[o] = i
-                    line = file.readline().strip()
-                    n = 100/len(lines)
-                    lastpercent = -2
-                    i = int(skip*len(lines))
-                    startedi = i
-                    for line in lines[int(skip*len(lines)):]:
-                        i+=1
-                        if (i - startedi) == int(len(lines)*0.015):
-                            cancel_counter -= 1
-                        if lastpercent != int(i*10*n+0.5):
-                            lastpercent = int(i*10*n+0.5)
-                            print("Playing... |"+("="*int((lastpercent/20)-1)+">").ljust(50)+"|",
-                              str(lastpercent/10).rjust(5)+"%",end="\r",flush=True)
-                        line = [int(float(l.strip() or 0)) for l in line.split(",")]
-                        if len(line)==3:
-                            note, length, delay = line[idnote], line[idlength], line[idnote]
-                            note = max(1,min(note,127))
-                            length = max(11,min(length,1000))
-                            delay = max(3,delay)
-                            if sqd:
-                                length, delay = 10*(length**0.5), 10*(delay**0.5)
-                            note = str(round(midi_data.note_to_freq(note)))
-                            playlen = str(fastlen) if fast or usepwm else str(round(length/x2))
-                            if nodelay: delay=0
-                            if cmd=="setterm":
-                                subprocess.run(( cmd,"--bfreq", note, "--blength", playlen, ))
-                            elif cmd=="xset":
-                                subprocess.run(( cmd,"b", "30", note, playlen, ))
-                            else:
-                                if DEBUG: print( (cmd, "-f", note, "-l", playlen,
-                                  "-d" if length+delay else "",
-                                  str(fastlen if fast else playlen) if length+delay else "",
-                                  ))
-                                subprocess.run(( cmd, "-f", note, "-l", playlen,
-                                  "-d" if length+delay else "",
-                                  str(fastlen if fast else playlen) if length+delay else "",
-                                  ))
-                            if cmd in ["setterm","xset"]:
-                                print(end="\a",flush=True)
-                            if length+delay and cmd in ["setterm","xset"]:
-                                time.sleep(fastlen/1000 if fast else (length/1000+delay/1000)/x2)
-                elif type in ["mid","midi"]:
-                    FPE("Midi not supported")
-                elif not type:
-                    FPE("No type for '"+fname+"'")
-                else:
-                    FPE("Unsupported type: "+str(type))
-            except:
-                file.close()
-                cancel_counter+=1
-                if cancel_counter > 1:
-                    raise
-                continue
-            file.close()
-    else:
-        FPE("No file: "+fname)
-if c == "setterm": subprocess.run((cmd, "--bfreq", "400", "--blength", "0"))
-elif c == "xset": subprocess.run((cmd, "b", "0", "400", "0"))
+
+try:
+	for a in sys.argv[1:]:
+	    a=os.path.realpath(a)
+	    if a != os.path.realpath(__file__) and os.path.isfile(a):
+	        fname=a
+	        print("" if DEBUG else "\r" + fname.split("/")[-1].ljust(80))
+	        type = fname.split(".")[-1]
+	        if type in ["csv"]:
+	            file = open(fname,"r")
+	        else:
+	            continue
+	        if DEBUG: print(type)
+	        idnote,idlength,iddelay=0,1,2
+	        text = {"note":idnote,"length":idlength,"delay":iddelay}
+	        lineno=-1
+	        if file:
+	            try:
+	                if type == "csv":
+	                    lines = file.read().split("\n")
+	                    line = [l.strip() for l in lines.pop(0)]
+	                    for i,o in enumerate(line):
+	                        if o in text:
+	                            text[o] = i
+	                    line = file.readline().strip()
+	                    n = 100/len(lines)
+	                    lastpercent = -2
+	                    i = int(skip*len(lines))
+	                    startedi = i
+	                    for line in lines[int(skip*len(lines)):]:
+	                        i+=1
+	                        if (i - startedi) == int(len(lines)*0.015):
+	                            cancel_counter -= 1
+	                        if lastpercent != int(i*10*n+0.5):
+	                            lastpercent = int(i*10*n+0.5)
+	                            print("Playing... |"+("="*int((lastpercent/20)-1)+">").ljust(50)+"|",
+	                              str(lastpercent/10).rjust(5)+"%",end="\r",flush=True)
+	                        line = [int(float(l.strip() or 0)) for l in line.split(",")]
+	                        if len(line)==3:
+	                            note, length, delay = line[idnote], line[idlength], line[idnote]
+	                            note = max(1,min(note,127))
+	                            length = max(11,min(length,1000))
+	                            delay = max(3,delay)
+	                            if sqd:
+	                                length, delay = 10*(length**0.5), 10*(delay**0.5)
+	                            note = str(round(midi_data.note_to_freq(note)))
+	                            playlen = str(fastlen) if fast or usepwm else str(round(length/x2))
+	                            if nodelay: delay=0
+	                            if cmd=="setterm":
+	                                subprocess.run(( cmd,"--bfreq", note, "--blength", playlen, ))
+	                            elif cmd=="xset":
+	                                subprocess.run(( cmd,"b", "30", note, playlen, ))
+	                            else:
+	                                if DEBUG: print( (cmd, "-f", note, "-l", playlen,
+	                                  "-d" if length+delay else "",
+	                                  str(fastlen if fast else playlen) if length+delay else "",
+	                                  ))
+	                                subprocess.run(( cmd, "-f", note, "-l", playlen,
+	                                  "-d" if length+delay else "",
+	                                  str(fastlen if fast else playlen) if length+delay else "",
+	                                  ))
+	                            if cmd in ["setterm","xset"]:
+	                                print(end="\a",flush=True)
+	                            if length+delay and cmd in ["setterm","xset"]:
+	                                time.sleep(fastlen/1000 if fast else (length/1000+delay/1000)/x2)
+	                elif type in ["mid","midi"]:
+	                    FPE("Midi not supported")
+	                elif not type:
+	                    FPE("No type for '"+fname+"'")
+	                else:
+	                    FPE("Unsupported type: "+str(type))
+	            except:
+	                file.close()
+	                cancel_counter+=1
+	                if cancel_counter > 1:
+	                    raise
+	                continue
+	            file.close()
+	    else:
+	        FPE("No file: "+fname)
+finally:
+    if c == "setterm": subprocess.run((cmd, "--bfreq", "400", "--blength", "0"))
+    else: subprocess.run(("xset", "b", "0", "400", "0"))
