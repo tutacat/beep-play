@@ -205,3 +205,4 @@ try:
 finally:
     if c == "setterm": subprocess.run((cmd, "--bfreq", "400", "--blength", "0"))
     else: subprocess.run(("xset", "b", "0", "400", "0"))
+    print()
